@@ -37,31 +37,31 @@ variable "aurora_version" {
 variable "serverless_min_capacity" {
   description = "Minimum Aurora Serverless v2 capacity units (0 - 128). Set to 0 to enable automatic pause."
   type        = number
-  default     = 0  # Automatic pause when idle
+  default     = 0 # Automatic pause when idle
 }
 
 variable "serverless_max_capacity" {
   description = "Maximum Aurora Serverless v2 capacity units (0.5 - 128)"
   type        = number
-  default     = 1  # Low max for dev environment
+  default     = 1 # Low max for dev environment
 }
 
 variable "seconds_until_auto_pause" {
   description = "Seconds of inactivity before automatic pause (300-86400). Only applies when min_capacity = 0."
   type        = number
-  default     = 300  # 5 minutes - pause quickly for cost savings
+  default     = 300 # 5 minutes - pause quickly for cost savings
 }
 
 variable "publicly_accessible" {
   description = "Whether the database is publicly accessible"
   type        = bool
-  default     = true  # Set to false for production
+  default     = true # Set to false for production
 }
 
 variable "allowed_cidr_blocks" {
   description = "CIDR blocks allowed to access the database"
   type        = list(string)
-  default     = ["0.0.0.0/0"]  # Allow from anywhere - restrict for production!
+  default     = ["0.0.0.0/0"] # Allow from anywhere - restrict for production!
 }
 
 variable "backup_retention_period" {
@@ -73,13 +73,13 @@ variable "backup_retention_period" {
 variable "skip_final_snapshot" {
   description = "Skip final snapshot when destroying"
   type        = bool
-  default     = true  # Set to false for production
+  default     = true # Set to false for production
 }
 
 variable "deletion_protection" {
   description = "Enable deletion protection"
   type        = bool
-  default     = false  # Set to true for production
+  default     = false # Set to true for production
 }
 
 variable "enable_account_tags" {
