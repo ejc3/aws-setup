@@ -115,9 +115,13 @@ resource "aws_db_subnet_group" "main" {
 
 # Security Group for RDS
 resource "aws_security_group" "rds" {
-  name        = "${var.project_name}-rds-sg"
+  name_prefix = "${var.project_name}-rds-sg-"
   description = "Security group for RDS MySQL instance"
   vpc_id      = local.vpc_id
+
+  lifecycle {
+    create_before_destroy = true
+  }
 
   # Allow MySQL from anywhere (adjust for production!)
   ingress {
