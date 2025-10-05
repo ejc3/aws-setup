@@ -1,4 +1,4 @@
-.PHONY: help shell init plan apply destroy output clean test connect connect-iam .aws-login .check-aws-cli
+.PHONY: help shell init plan apply destroy output clean test connect connect-iam .aws-login .check-aws-cli .check-podman
 
 # Container runtime (podman or docker)
 CONTAINER_RUNTIME := $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null || echo /opt/homebrew/bin/podman)
@@ -31,6 +31,15 @@ help:
 		echo "AWS CLI installed successfully"; \
 	fi
 
+# Ensure Podman machine is running
+.check-podman:
+	@if command -v podman >/dev/null 2>&1; then \
+		if ! podman machine inspect 2>/dev/null | grep -q '"State": "running"'; then \
+			echo "Starting Podman machine..."; \
+			podman machine start; \
+		fi \
+	fi
+
 # Ensure AWS config exists
 $(AWS_DIR)/config:
 	@mkdir -p $(AWS_DIR)
@@ -53,7 +62,6 @@ $(AWS_DIR)/config:
 		-e AWS_REGION \
 		--entrypoint /usr/local/bin/aws-login.sh \
 		aws-dev
-	@touch .aws-login
 
 # Ensure terraform.tfvars exists (create if missing)
 terraform.tfvars:
@@ -65,7 +73,7 @@ terraform.tfvars:
 	fi
 
 # Build the container (internal target)
-.container-built: Dockerfile aws-login.sh
+.container-built: .check-podman Dockerfile aws-login.sh
 	$(CONTAINER_RUNTIME) build -t aws-dev .
 	@touch .container-built
 
