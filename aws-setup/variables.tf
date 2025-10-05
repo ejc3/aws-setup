@@ -81,3 +81,9 @@ variable "deletion_protection" {
   type        = bool
   default     = false  # Set to true for production
 }
+
+variable "enable_account_tags" {
+  description = "Enable account-level tagging (requires AWS Organizations)"
+  type        = bool
+  default     = false
+}
