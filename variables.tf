@@ -91,5 +91,5 @@ variable "enable_account_tags" {
 variable "github_repo" {
   description = "GitHub repository in format: username/repo"
   type        = string
-  default     = "" # Set via TF_VAR_github_repo in .env or pass via -var
+  default     = ""
 }
