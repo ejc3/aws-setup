@@ -134,12 +134,14 @@ No manual build, no manual login, no manual infrastructure setup.
 ## When Working on This Project
 
 ### Do:
+- **ALWAYS use Makefile commands** - `make init`, `make apply`, `make destroy`, `make fmt`, etc.
 - Keep the Makefile simple and automatic
 - Use Makefile dependencies for prerequisites
 - Make auth checks PHONY so they always run
 - Maintain single opinionated way to do things
 - Keep README.md concise
 - Test "wake up" scenario (expired sessions)
+- **Prefer Makefile targets over direct CLI commands** for reproducibility
 
 ### Don't:
 - Add options or alternatives
@@ -147,6 +149,7 @@ No manual build, no manual login, no manual infrastructure setup.
 - Add manual setup steps
 - Make users think about configuration
 - Cache auth state without re-checking (breaks session expiration)
+- **Run raw commands when a Makefile target exists** - use `make` instead
 
 ### Common Pitfalls
 
