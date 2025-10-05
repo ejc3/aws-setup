@@ -40,16 +40,25 @@ else
         echo ""
     fi
 
+    if [ -z "$SSO_ACCOUNT_ID" ]; then
+        cat <<'EOF' >&2
+ERROR: SSO_ACCOUNT_ID is not set.
+Set the variable in your environment or define it in a .env file (see .env.example) before running make.
+EOF
+        exit 1
+    fi
+
     echo "Configuring SSO..."
     echo "SSO Start URL: $SSO_START_URL"
     echo "SSO Region: ${SSO_REGION:-us-east-1}"
     echo "CLI Region: ${AWS_REGION:-us-west-1}"
+    echo "Account ID: $SSO_ACCOUNT_ID"
     echo ""
 
     # Configure SSO with provided values including account and role
     aws configure set sso_start_url "$SSO_START_URL"
     aws configure set sso_region "${SSO_REGION:-us-east-1}"
-    aws configure set sso_account_id "${SSO_ACCOUNT_ID:-928413605543}"
+    aws configure set sso_account_id "$SSO_ACCOUNT_ID"
     aws configure set sso_role_name "${SSO_ROLE_NAME:-AdministratorAccess}"
     aws configure set region "${AWS_REGION:-us-west-1}"
 

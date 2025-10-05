@@ -12,20 +12,34 @@ Terraform + Docker setup for AWS infrastructure with automatic authentication an
 
 ## Setup
 
-```bash
-# 1. Deploy
-make init    # Auto-builds container, auto-creates config, auto-logs in
-             # Paste URL in browser when prompted
-             # Password is auto-generated (IAM authentication enabled)
-make plan
-make apply
+1. Configure your AWS account ID for SSO (required – there is no default):
 
-# 2. Connect (if deploying database)
-make connect # Auto-connects to database
+   ```bash
+   cp .env.example .env              # create a private env file (ignored by git)
+   echo "SSO_ACCOUNT_ID=123456789012" >> .env
+   # or export SSO_ACCOUNT_ID in your shell before running make
+   ```
 
-# 3. Destroy
-make destroy
-```
+   The `make` targets load values from `.env` automatically and the login helper
+   aborts if `SSO_ACCOUNT_ID` is missing, preventing accidental reuse of a shared
+   default.
+
+2. Deploy and manage the stack:
+
+   ```bash
+   # 1. Deploy
+   make init    # Auto-builds container, auto-creates config, auto-logs in
+                # Paste URL in browser when prompted
+                # Password is auto-generated (IAM authentication enabled)
+   make plan
+   make apply
+
+   # 2. Connect (if deploying database)
+   make connect # Auto-connects to database
+
+   # 3. Destroy
+   make destroy
+   ```
 
 **Wake up and deploy:**
 ```bash

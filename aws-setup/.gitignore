@@ -9,6 +9,7 @@ terraform.tfvars
 # Make artifacts
 .aws-login
 .container-built
+.env
 
 # OS
 .DS_Store
