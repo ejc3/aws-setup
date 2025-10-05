@@ -54,7 +54,20 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform fmt
-        run: terraform fmt -check
+        run: terraform fmt -recursive
+
+      - name: Commit formatted files
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-format Terraform files
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+            git push
+          fi
 
       - name: Terraform init
         run: terraform init -input=false

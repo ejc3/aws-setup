@@ -18,6 +18,7 @@ endif
 # Default target
 help:
 	@echo "Available targets:"
+	@echo "  make fmt         - Format Terraform files"
 	@echo "  make init        - Initialize Terraform"
 	@echo "  make plan        - Run Terraform plan"
 	@echo "  make apply       - Deploy the infrastructure"
@@ -83,6 +84,13 @@ shell: .aws-login
 		aws-dev
 
 # Terraform commands (run in container)
+fmt: .container-built
+	$(CONTAINER_RUNTIME) run --rm \
+		-v $(PWD):/workspace \
+		$(CONTAINER_ENV_ARGS) \
+		aws-dev \
+		fmt
+
 init: .aws-login terraform.tfvars
 	$(CONTAINER_RUNTIME) run --rm \
 		-v $(PWD):/workspace \

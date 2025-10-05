@@ -126,8 +126,8 @@ resource "aws_security_group" "rds" {
 
 # Generate random password for initial cluster creation
 resource "random_password" "db_password" {
-  length  = 20
-  special = true
+  length           = 20
+  special          = true
   override_special = "_#%&-+=?!" # Avoid characters RDS forbids: '/', '@', '"', ' '
 }
 
@@ -156,34 +156,34 @@ resource "aws_iam_policy" "rds_connect" {
 
 # Aurora Serverless v2 MySQL Cluster
 resource "aws_rds_cluster" "aurora" {
-  cluster_identifier      = var.db_identifier
-  engine                  = "aurora-mysql"
-  engine_mode             = "provisioned"  # Required for Serverless v2
-  engine_version          = var.aurora_version
-  database_name           = var.db_name
-  master_username         = var.db_username
-  master_password         = random_password.db_password.result
+  cluster_identifier = var.db_identifier
+  engine             = "aurora-mysql"
+  engine_mode        = "provisioned" # Required for Serverless v2
+  engine_version     = var.aurora_version
+  database_name      = var.db_name
+  master_username    = var.db_username
+  master_password    = random_password.db_password.result
 
   # Enable IAM database authentication
   iam_database_authentication_enabled = true
 
-  db_subnet_group_name    = aws_db_subnet_group.main.name
-  vpc_security_group_ids  = [aws_security_group.rds.id]
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
 
-  backup_retention_period = var.backup_retention_period
-  preferred_backup_window = "03:00-04:00"
+  backup_retention_period      = var.backup_retention_period
+  preferred_backup_window      = "03:00-04:00"
   preferred_maintenance_window = "mon:04:00-mon:05:00"
 
-  skip_final_snapshot     = var.skip_final_snapshot
+  skip_final_snapshot       = var.skip_final_snapshot
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.db_identifier}-final-snapshot"
 
-  deletion_protection     = var.deletion_protection
-  storage_encrypted       = true
+  deletion_protection = var.deletion_protection
+  storage_encrypted   = true
 
   # Serverless v2 scaling configuration with automatic pause
   serverlessv2_scaling_configuration {
-    max_capacity          = var.serverless_max_capacity
-    min_capacity          = var.serverless_min_capacity
+    max_capacity             = var.serverless_max_capacity
+    min_capacity             = var.serverless_min_capacity
     seconds_until_auto_pause = var.serverless_min_capacity == 0 ? var.seconds_until_auto_pause : null
   }
 
@@ -212,7 +212,7 @@ resource "null_resource" "create_iam_user" {
   depends_on = [aws_rds_cluster.aurora, aws_rds_cluster_instance.aurora_serverless]
 
   triggers = {
-    cluster_id = aws_rds_cluster.aurora.id
+    cluster_id  = aws_rds_cluster.aurora.id
     instance_id = aws_rds_cluster_instance.aurora_serverless.id
   }
 
