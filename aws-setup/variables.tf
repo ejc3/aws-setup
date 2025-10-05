@@ -35,21 +35,15 @@ variable "aurora_version" {
 }
 
 variable "serverless_min_capacity" {
-  description = "Minimum Aurora Serverless v2 capacity units (0 - 128). Set to 0 to enable automatic pause."
+  description = "Minimum Aurora Serverless v2 capacity units (0.5 - 128)."
   type        = number
-  default     = 0  # Automatic pause when idle
+  default     = 0.5  # Smallest value allowed for Serverless v2
 }
 
 variable "serverless_max_capacity" {
-  description = "Maximum Aurora Serverless v2 capacity units (0.5 - 128)"
+  description = "Maximum Aurora Serverless v2 capacity units (0.5 - 128)."
   type        = number
   default     = 1  # Low max for dev environment
-}
-
-variable "seconds_until_auto_pause" {
-  description = "Seconds of inactivity before automatic pause (300-86400). Only applies when min_capacity = 0."
-  type        = number
-  default     = 300  # 5 minutes - pause quickly for cost savings
 }
 
 variable "publicly_accessible" {

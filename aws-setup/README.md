@@ -2,7 +2,7 @@
 
 Terraform + Docker setup for AWS infrastructure with automatic authentication and containerized dev environment.
 
-**Current Configuration**: Aurora Serverless v2 with 0 ACU auto-pause - pauses after 5 minutes idle = $0 compute charges when not in use.
+**Current Configuration**: Aurora Serverless v2 sized for cost-conscious development environments.
 
 ## Cost (Current Aurora Setup)
 
@@ -32,21 +32,13 @@ make destroy
 make apply # Handles everything: build, login, deploy
 ```
 
-## Auto-Pause (Aurora Feature)
-
-- Database pauses after 5 minutes of inactivity
-- Resumes in ~15 seconds on first connection
-- $0 compute charges while paused
-- Only pay for storage (~$1/month for 10GB)
-
 ## Configuration
 
 Edit `terraform.tfvars` if needed (defaults work out-of-box):
 - Password is auto-generated via Terraform random_password
 - IAM authentication enabled for token-based access
-- `serverless_min_capacity = 0` - Enables auto-pause
+- `serverless_min_capacity = 0.5` - Smallest Aurora Serverless v2 capacity
 - `serverless_max_capacity = 1` - Low ceiling for dev
-- `seconds_until_auto_pause = 300` - 5 minutes
 
 ## Commands
 
@@ -79,7 +71,7 @@ Everything automatic. Container builds when Dockerfile changes. Login checks hap
 - Security group allowing database port 3306
 - Encrypted storage
 - Automated backups (7 days retention)
-- Auto-pause at 0 ACU when idle
+- Serverless capacity between 0.5 and 1 ACU
 
 ## Troubleshooting
 
@@ -89,6 +81,6 @@ Everything automatic. Container builds when Dockerfile changes. Login checks hap
 
 **Can't connect after apply**: Wait 5-10 minutes for resource initialization
 
-**High costs** (Aurora): Database not pausing - check for open connections
+**High costs** (Aurora): Review connections and consider reducing max capacity
 
 **Container rebuild needed**: `make clean` then run your command

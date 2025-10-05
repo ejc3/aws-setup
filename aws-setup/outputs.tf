@@ -65,13 +65,10 @@ output "iam_connect_instructions" {
   EOT
 }
 
-output "auto_pause_config" {
-  description = "Auto-pause configuration details"
+output "serverless_scaling_config" {
+  description = "Serverless v2 scaling configuration details"
   value = {
-    min_capacity           = aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].min_capacity
-    max_capacity           = aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].max_capacity
-    auto_pause_enabled     = aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].min_capacity == 0
-    seconds_until_pause    = aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].min_capacity == 0 ? aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].seconds_until_auto_pause : null
-    pause_delay_minutes    = aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].min_capacity == 0 ? aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].seconds_until_auto_pause / 60 : null
+    min_capacity = aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].min_capacity
+    max_capacity = aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].max_capacity
   }
 }

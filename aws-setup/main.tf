@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5"
+    }
     null = {
       source  = "hashicorp/null"
       version = "~> 3.0"
@@ -180,11 +184,10 @@ resource "aws_rds_cluster" "aurora" {
   deletion_protection     = var.deletion_protection
   storage_encrypted       = true
 
-  # Serverless v2 scaling configuration with automatic pause
+  # Serverless v2 scaling configuration
   serverlessv2_scaling_configuration {
     max_capacity          = var.serverless_max_capacity
     min_capacity          = var.serverless_min_capacity
-    seconds_until_auto_pause = var.serverless_min_capacity == 0 ? var.seconds_until_auto_pause : null
   }
 
   tags = {

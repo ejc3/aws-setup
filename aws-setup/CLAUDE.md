@@ -15,7 +15,7 @@ This project is opinionated and minimal:
 ## Key Principles
 
 1. **Makefile Does Everything**: All setup, login, config creation is handled automatically via Makefile dependencies
-2. **No Options**: Device code flow only, 0 ACU auto-pause only, us-west-1 only
+2. **No Options**: Device code flow only, fixed low-capacity Aurora Serverless v2, us-west-1 only
 3. **Sensible Defaults**: Everything pre-configured for maximum cost savings
 4. **No Extra Docs**: README.md is the only user-facing documentation
 
@@ -25,7 +25,7 @@ AWS infrastructure management with:
 - Terraform infrastructure-as-code
 - Containerized dev environment (Podman/Docker)
 - Device code authentication (paste URL in browser)
-- Current configuration: Aurora Serverless v2 with 0 ACU auto-pause
+- Current configuration: Aurora Serverless v2 sized for minimal ACU usage
 
 ## User Workflow
 
@@ -73,10 +73,9 @@ No manual build, no manual login, no manual infrastructure setup.
 
 ### Cost Optimization (Current Aurora Setup)
 
-- `serverless_min_capacity = 0` - Enables automatic pause
-- `seconds_until_auto_pause = 300` - 5 minutes idle before pause
+- `serverless_min_capacity = 0.5` - Minimum allowed ACU for Serverless v2
 - `serverless_max_capacity = 1` - Low ceiling for dev
-- Result: ~$5-15/month instead of ~$45/month
+- Result: ~$15/month for light development workloads
 
 ### File Structure
 
@@ -170,7 +169,7 @@ Don't. Device code flow is the only way.
 Don't. us-west-1 is the choice.
 
 **Add deployment options**:
-Don't. 0 ACU auto-pause is the way.
+Don't. Fixed low-capacity Aurora Serverless v2 is the way.
 
 ## Philosophy in Action
 
