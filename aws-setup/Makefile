@@ -4,6 +4,12 @@
 CONTAINER_RUNTIME := $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null || echo /opt/homebrew/bin/podman)
 PWD := $(shell pwd)
 AWS_DIR := $(HOME)/.aws
+ENV_FILE := $(PWD)/.env
+
+ifneq (,$(wildcard $(ENV_FILE)))
+include $(ENV_FILE)
+export $(shell sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' $(ENV_FILE))
+endif
 
 # Default target
 help:
