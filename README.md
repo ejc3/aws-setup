@@ -164,3 +164,4 @@ Everything automatic. Container builds when Dockerfile changes. Login checks hap
 
 **Container rebuild needed**: `make clean` then run your command
 # Test CI
+# Test CI with clean AWS account
