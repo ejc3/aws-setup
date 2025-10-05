@@ -67,7 +67,7 @@ jobs:
       - name: Terraform plan
         run: terraform plan -input=false -out=tfplan.binary
         env:
-          TF_VAR_aws_region: ${{ env.AWS_REGION }}
+          TF_VAR_github_repo: ${{ github.repository }}
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@v4
@@ -75,3 +75,88 @@ jobs:
           name: tfplan
           path: aws-setup/tfplan.binary
           if-no-files-found: error
+
+  # Test incremental apply - deploy infrastructure
+  apply:
+    name: Apply infrastructure
+    runs-on: ubuntu-latest
+    needs: terraform
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: aws-setup
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.AWS_TERRAFORM_ROLE_NAME }}
+          role-session-name: terraform-apply
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_github_repo: ${{ github.repository }}
+
+      - name: Terraform output
+        run: terraform output -json
+
+      - name: Verify resources created
+        run: |
+          echo "Checking deployed resources..."
+          terraform state list
+
+  # Test destroy - clean up all resources
+  destroy:
+    name: Destroy infrastructure
+    runs-on: ubuntu-latest
+    needs: apply
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: aws-setup
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.AWS_TERRAFORM_ROLE_NAME }}
+          role-session-name: terraform-destroy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform destroy
+        run: terraform destroy -auto-approve -input=false
+        env:
+          TF_VAR_github_repo: ${{ github.repository }}
+
+      - name: Verify all resources destroyed
+        run: |
+          echo "Checking that all resources are destroyed..."
+          if [ $(terraform state list | wc -l) -eq 0 ]; then
+            echo "✅ All resources successfully destroyed"
+          else
+            echo "❌ Some resources remain:"
+            terraform state list
+            exit 1
+          fi
