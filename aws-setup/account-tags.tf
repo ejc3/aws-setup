@@ -19,3 +19,4 @@ output "account_info" {
     warning      = "⚠️  SCRATCH ACCOUNT - Resources may be destroyed automatically by CI"
   }
 }
+
