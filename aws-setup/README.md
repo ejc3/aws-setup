@@ -46,6 +46,55 @@ Terraform + Docker setup for AWS infrastructure with automatic authentication an
 make apply # Handles everything: build, login, deploy
 ```
 
+## Test safely before production
+
+- **Spin up a sandbox account.** Use AWS Organizations to create or invite a
+  dedicated development account that rolls up to your primary payer account so
+  you can share billing while keeping experiments isolated.
+- **Reuse the same SSO identities.** Enable IAM Identity Center in that sandbox
+  account and create the same permission sets you use in production so you can
+  switch accounts with the SSO start URL alone.
+- **Track costs.** Turn on Cost Explorer/Budgets in the payer account and tag
+  sandbox resources (for example, `environment=sandbox`).
+
+See [`docs/multi-account-and-ci.md`](docs/multi-account-and-ci.md) for
+step-by-step guidance on creating and linking the account.
+
+## Continuous integration with GitHub Actions
+
+This repo ships with `.github/workflows/terraform-ci.yml`, which runs Terraform
+formatting, validation, and a `plan` on pushes and pull requests to `main`.
+
+To enable it:
+
+1. Create an IAM role in your sandbox account that trusts GitHub's OIDC provider
+   (`token.actions.githubusercontent.com`) and grants permissions for this
+   Terraform stack.
+2. Store the role ARN in the repository secret `AWS_TERRAFORM_ROLE_ARN`.
+3. (Optional) Define a repository variable `AWS_REGION` if you want CI to run in
+   a different region than the defaults (`us-west-1`).
+
+Each workflow run uploads the generated plan (`tfplan.binary`) as an artifact so
+you can download and apply it manually or feed it into an approval step.
+
+## Alternate deployment targets
+
+Need an "alt" deployment (for example, staging vs. production)? Pick one of two
+approaches:
+
+- **Separate Terraform workspaces per account.** `make shell`, then run
+  `terraform workspace new sandbox` (once) and `terraform workspace select` to
+  switch between environments. Keep `SSO_ACCOUNT_ID` pointing at the matching
+  AWS account before you `make apply`.
+- **Per-environment variable files in one account.** Copy `terraform.tfvars` to
+  `env.sandbox.tfvars`, tweak the values, and pass
+  `TF_CLI_ARGS_plan="-var-file=env.sandbox.tfvars"` (and the matching
+  `TF_CLI_ARGS_apply`) when you invoke `make`.
+
+Both strategies keep state files separate and prevent accidental cross-
+environment changes. Additional details live in
+[`docs/multi-account-and-ci.md`](docs/multi-account-and-ci.md).
+
 ## Auto-Pause (Aurora Feature)
 
 - Database pauses after 5 minutes of inactivity
