@@ -65,7 +65,7 @@ variable "allowed_cidr_blocks" {
 }
 
 variable "backup_retention_period" {
-  description = "Backup retention period in days"
+  description = "Number of days to retain automated backups"
   type        = number
   default     = 7
 }
