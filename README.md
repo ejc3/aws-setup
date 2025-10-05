@@ -1,0 +1,1 @@
+Suprisingly difficult to setup a *basic* AWS account from scratch, but this project finally does it with Terraform and a make file to wrap standard commands. (Personal project so don't think this is production grade or anything).
