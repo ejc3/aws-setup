@@ -9,6 +9,10 @@ ENV_FILE := $(PWD)/.env
 ifneq (,$(wildcard $(ENV_FILE)))
 include $(ENV_FILE)
 export $(shell sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' $(ENV_FILE))
+# Pass all env vars from .env to container via --env-file
+CONTAINER_ENV_ARGS := --env-file $(ENV_FILE)
+else
+CONTAINER_ENV_ARGS :=
 endif
 
 # Default target
@@ -51,15 +55,7 @@ $(AWS_DIR)/config:
 .aws-login: .check-aws-cli $(AWS_DIR)/config .container-built
 	@$(CONTAINER_RUNTIME) run -it --rm \
 		-v $(AWS_DIR):/root/.aws \
-		-e AWS_ACCESS_KEY_ID \
-		-e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN \
-		-e AWS_PROFILE \
-		-e SSO_START_URL \
-		-e SSO_REGION \
-		-e SSO_ACCOUNT_ID \
-		-e SSO_ROLE_NAME \
-		-e AWS_REGION \
+		$(CONTAINER_ENV_ARGS) \
 		--entrypoint /usr/local/bin/aws-login.sh \
 		aws-dev
 
@@ -82,10 +78,7 @@ shell: .aws-login
 	$(CONTAINER_RUNTIME) run -it --rm \
 		-v $(PWD):/workspace \
 		-v $(AWS_DIR):/root/.aws:ro \
-		-e AWS_ACCESS_KEY_ID \
-		-e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN \
-		-e AWS_PROFILE \
+		$(CONTAINER_ENV_ARGS) \
 		--entrypoint /bin/bash \
 		aws-dev
 
@@ -94,10 +87,7 @@ init: .aws-login terraform.tfvars
 	$(CONTAINER_RUNTIME) run --rm \
 		-v $(PWD):/workspace \
 		-v $(AWS_DIR):/root/.aws:ro \
-		-e AWS_ACCESS_KEY_ID \
-		-e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN \
-		-e AWS_PROFILE \
+		$(CONTAINER_ENV_ARGS) \
 		aws-dev \
 		init
 
@@ -105,10 +95,7 @@ plan: .aws-login terraform.tfvars
 	$(CONTAINER_RUNTIME) run --rm \
 		-v $(PWD):/workspace \
 		-v $(AWS_DIR):/root/.aws:ro \
-		-e AWS_ACCESS_KEY_ID \
-		-e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN \
-		-e AWS_PROFILE \
+		$(CONTAINER_ENV_ARGS) \
 		aws-dev \
 		plan
 
@@ -116,10 +103,7 @@ apply: .aws-login terraform.tfvars
 	$(CONTAINER_RUNTIME) run -it --rm \
 		-v $(PWD):/workspace \
 		-v $(AWS_DIR):/root/.aws:ro \
-		-e AWS_ACCESS_KEY_ID \
-		-e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN \
-		-e AWS_PROFILE \
+		$(CONTAINER_ENV_ARGS) \
 		aws-dev \
 		apply -auto-approve
 
@@ -127,10 +111,7 @@ destroy: .aws-login
 	$(CONTAINER_RUNTIME) run -it --rm \
 		-v $(PWD):/workspace \
 		-v $(AWS_DIR):/root/.aws:ro \
-		-e AWS_ACCESS_KEY_ID \
-		-e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN \
-		-e AWS_PROFILE \
+		$(CONTAINER_ENV_ARGS) \
 		aws-dev \
 		destroy -auto-approve
 
@@ -138,10 +119,7 @@ output: .aws-login
 	$(CONTAINER_RUNTIME) run --rm \
 		-v $(PWD):/workspace \
 		-v $(AWS_DIR):/root/.aws:ro \
-		-e AWS_ACCESS_KEY_ID \
-		-e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN \
-		-e AWS_PROFILE \
+		$(CONTAINER_ENV_ARGS) \
 		aws-dev \
 		output
 
@@ -152,10 +130,7 @@ connect: .aws-login
 	@$(CONTAINER_RUNTIME) run -it --rm \
 		-v $(PWD):/workspace \
 		-v $(AWS_DIR):/root/.aws:ro \
-		-e AWS_ACCESS_KEY_ID \
-		-e AWS_SECRET_ACCESS_KEY \
-		-e AWS_SESSION_TOKEN \
-		-e AWS_PROFILE \
+		$(CONTAINER_ENV_ARGS) \
 		--entrypoint sh \
 		aws-dev -c ' \
 			ENDPOINT=$$(terraform output -raw db_address 2>/dev/null) && \
