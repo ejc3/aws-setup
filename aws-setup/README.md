@@ -163,3 +163,4 @@ Everything automatic. Container builds when Dockerfile changes. Login checks hap
 **High costs** (Aurora): Database not pausing - check for open connections
 
 **Container rebuild needed**: `make clean` then run your command
+# Test CI
