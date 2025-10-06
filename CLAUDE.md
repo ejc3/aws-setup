@@ -150,6 +150,7 @@ No manual build, no manual login, no manual infrastructure setup.
 - Make users think about configuration
 - Cache auth state without re-checking (breaks session expiration)
 - **Run raw commands when a Makefile target exists** - use `make` instead
+- **NEVER add Claude Code attribution to git commits** - no "Generated with Claude Code" or "Co-Authored-By: Claude" in commit messages
 
 ### Common Pitfalls
 
