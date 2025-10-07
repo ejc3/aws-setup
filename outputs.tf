@@ -75,3 +75,25 @@ output "auto_pause_config" {
     pause_delay_minutes = aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].min_capacity == 0 ? aws_rds_cluster.aurora.serverlessv2_scaling_configuration[0].seconds_until_auto_pause / 60 : null
   }
 }
+
+# Development Instance Outputs
+output "dev_instance_id" {
+  description = "Development instance ID"
+  value       = var.enable_dev_instance ? aws_instance.dev[0].id : null
+}
+
+output "dev_instance_state" {
+  description = "Development instance state"
+  value       = var.enable_dev_instance ? aws_instance.dev[0].instance_state : null
+}
+
+output "dev_ssh_command" {
+  description = "Command to SSH into dev instance via SSM"
+  value       = var.enable_dev_instance ? "aws ssm start-session --target ${aws_instance.dev[0].id} --region ${var.aws_region}" : "Dev instance not enabled"
+}
+
+# ECR Outputs
+output "ecr_repository_url" {
+  description = "ECR repository URL for all demos"
+  value       = aws_ecr_repository.demos.repository_url
+}

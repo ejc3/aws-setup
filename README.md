@@ -112,27 +112,98 @@ environment changes. Additional details live in
 
 ## Configuration
 
-Edit `terraform.tfvars` if needed (defaults work out-of-box):
+Edit `terraform.tfvars` to enable/configure components (defaults work out-of-box):
+
+### Aurora Database (Optional)
+- `enable_aurora = false` - Set to `true` to enable Aurora Serverless v2
 - Password is auto-generated via Terraform random_password
 - IAM authentication enabled for token-based access
 - `serverless_min_capacity = 0` - Enables auto-pause
 - `serverless_max_capacity = 1` - Low ceiling for dev
 - `seconds_until_auto_pause = 300` - 5 minutes
 
+### Development Instance (Optional)
+- `enable_dev_instance = true` - Set to `true` to enable EC2 dev instance
+- `dev_instance_type = "t2.micro"` - Instance size (~$8/month)
+- `dev_volume_size = 20` - EBS volume size in GB
+
 ## Commands
 
+### Infrastructure Management
 ```
-make init     - Initialize (auto-builds, auto-logins, auto-creates config)
-make plan     - Preview changes
-make apply    - Deploy infrastructure
-make connect  - Connect to database (if deployed)
-make output   - Show Terraform outputs
-make destroy  - Remove infrastructure
-make shell    - Interactive shell in container
-make clean    - Clean Terraform state and artifacts
+make init        - Initialize (auto-builds, auto-logins, auto-creates config)
+make plan        - Preview changes
+make apply       - Deploy infrastructure
+make output      - Show Terraform outputs
+make destroy     - Remove infrastructure
+make shell       - Interactive shell in container
+make clean       - Clean Terraform state and artifacts
+```
+
+### Database Access (if Aurora enabled)
+```
+make connect     - Connect to Aurora database
+```
+
+### Development Instance (if enabled)
+```
+make dev-ssh     - SSH into development instance via SSM
 ```
 
 Everything automatic. Container builds when Dockerfile changes. Login checks happen every time.
+
+## Deploying Demos to AWS
+
+The EC2 development instance can automatically deploy demos from private GitHub repositories.
+
+### Setup GitHub Authentication
+
+1. **Create a fine-grained GitHub Personal Access Token (PAT)**:
+   - Go to: https://github.com/settings/personal-access-tokens/new
+   - Token name: "AWS EC2 deployment token"
+   - Expiration: Choose your preference (90 days recommended)
+   - Repository access: **Only select repositories**
+     - Select: `ejc3/nextjs-demos` and `ejc3/python-demos`
+   - Permissions:
+     - Repository permissions → Contents: **Read-only**
+   - Generate and copy the token (starts with `github_pat_`)
+
+2. **Store the token in AWS Secrets Manager**:
+   ```bash
+   aws secretsmanager update-secret \
+       --secret-id github-deploy-token \
+       --secret-string "ghp_YOUR_TOKEN_HERE" \
+       --region us-west-1
+   ```
+
+### Deploying from Demo Repositories
+
+Each demo repository (nextjs-demos, python-demos) includes a `deploy-to-aws.sh` script that:
+- Finds the EC2 instance by tags (no manual instance ID needed)
+- Uploads code from GitHub using the stored PAT
+- Auto-detects demo type (Next.js vs Python)
+- Builds and deploys all demos
+- Manages processes (PM2 for Next.js, systemd for Python)
+
+**To deploy**:
+```bash
+cd ~/src/nextjs-demos && ./deploy-to-aws.sh
+cd ~/src/python-demos && ./deploy-to-aws.sh
+```
+
+### How It Works
+
+1. **Tag-based discovery**: Deploy scripts query AWS EC2 for instances tagged with `AutoDeploy=true` and `Environment=dev`
+2. **SSM communication**: Commands sent via AWS Systems Manager (no SSH needed)
+3. **GitHub authentication**: EC2 instance fetches PAT from Secrets Manager to clone private repos
+4. **Auto-detection**: Deployment script examines repo structure to determine Next.js vs Python
+5. **Process management**:
+   - Next.js demos run via PM2 on ports 3001-3006
+   - Python demos run via systemd user services on configured ports
+
+### Deployment Script Location
+
+The generic deployment script lives on the EC2 instance at `/home/ec2-user/deploy-from-github.sh` and is automatically uploaded via Terraform.
 
 ## Files
 
@@ -143,14 +214,25 @@ Everything automatic. Container builds when Dockerfile changes. Login checks hap
 - `outputs.tf` - Output values
 - `terraform.tfvars` - Your configuration (not in git)
 
-## Current Infrastructure (Aurora Serverless v2)
+## Current Infrastructure
 
+### Aurora Serverless v2 (Optional - disabled by default)
 - Aurora Serverless v2 cluster (us-west-1)
 - VPC with 2 subnets across availability zones
 - Security group allowing database port 3306
 - Encrypted storage
 - Automated backups (7 days retention)
 - Auto-pause at 0 ACU when idle
+
+### Development EC2 Instance (Optional - disabled by default)
+- Amazon Linux 2023 t2.micro instance (~$8/month)
+- Accessed via AWS Systems Manager (SSM) - no SSH keys needed
+- VPC endpoints for private AWS API access (no public IP required)
+- Persistent EBS volume (survives stop/start)
+- IAM role with:
+  - SSM access for remote shell
+  - Secrets Manager access for GitHub authentication
+- Automatically deploys demos from private GitHub repositories
 
 ## Troubleshooting
 

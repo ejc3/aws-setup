@@ -12,11 +12,9 @@ output "account_info" {
   value = {
     account_id  = data.aws_caller_identity.current.account_id
     account_arn = data.aws_caller_identity.current.arn
-    purpose     = "Scratch/Development Account"
-    environment = "sandbox"
+    purpose     = "Development Account"
+    environment = "development"
     managed_by  = "Terraform"
-    repository  = var.github_repo
-    warning     = "⚠️  SCRATCH ACCOUNT - Resources may be destroyed automatically by CI"
   }
 }
 

@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.0"
     }
+    tailscale = {
+      source  = "tailscale/tailscale"
+      version = "~> 0.13"
+    }
   }
 }
 

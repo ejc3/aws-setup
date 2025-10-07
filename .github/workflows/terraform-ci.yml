@@ -23,8 +23,8 @@ jobs:
   terraform:
     name: Validate & plan
     runs-on: ubuntu-latest
-    # Only run for repo owner or specific collaborators
-    if: github.event_name == 'push' || github.actor == 'ejc3' || contains(fromJSON('["ejc3"]'), github.actor)
+    # Only run on push events or for allowed users (configure via repository variables)
+    if: github.event_name == 'push' || github.actor == github.repository_owner
     steps:
       - name: Checkout
         uses: actions/checkout@v4

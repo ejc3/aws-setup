@@ -1,4 +1,4 @@
-.PHONY: help shell init plan apply destroy output clean test connect connect-iam .aws-login .check-aws-cli .check-podman
+.PHONY: help shell init plan apply destroy output clean test connect connect-iam dev-start dev-stop dev-ssh dev-status .aws-login .check-aws-cli .check-podman
 
 # Container runtime (podman or docker)
 CONTAINER_RUNTIME := $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/null || echo /opt/homebrew/bin/podman)
@@ -27,6 +27,12 @@ help:
 	@echo "  make destroy     - Destroy the infrastructure"
 	@echo "  make shell       - Start an interactive shell"
 	@echo "  make clean       - Clean everything"
+	@echo ""
+	@echo "Development Instance:"
+	@echo "  make dev-start   - Start dev instance (creates if needed)"
+	@echo "  make dev-stop    - Stop dev instance (persists disk)"
+	@echo "  make dev-ssh     - SSH into dev instance via SSM"
+	@echo "  make dev-status  - Show dev instance status"
 
 # Ensure AWS CLI is installed via Homebrew (required for SSO)
 .check-aws-cli:
@@ -168,3 +174,74 @@ test:
 # Clean everything
 clean:
 	rm -rf .terraform .terraform.lock.hcl terraform.tfstate terraform.tfstate.backup *.tfplan .aws-login .container-built
+
+# Development instance management
+dev-start: .aws-login
+	@echo "Starting development instance..."
+	@INSTANCE_ID=$$($(CONTAINER_RUNTIME) run --rm \
+		-v $(PWD):/workspace \
+		-v $(AWS_DIR):/root/.aws:ro \
+		$(CONTAINER_ENV_ARGS) \
+		aws-dev \
+		output -raw dev_instance_id 2>/dev/null) && \
+	if [ -z "$$INSTANCE_ID" ] || [ "$$INSTANCE_ID" = "null" ]; then \
+		echo "Dev instance not deployed. Run: make apply" && exit 1; \
+	fi && \
+	STATE=$$(aws ec2 describe-instances --instance-ids $$INSTANCE_ID --query 'Reservations[0].Instances[0].State.Name' --output text --region $(shell grep 'aws_region' terraform.tfvars 2>/dev/null | cut -d'"' -f2 || echo us-west-1)) && \
+	if [ "$$STATE" = "stopped" ]; then \
+		echo "Starting instance $$INSTANCE_ID..." && \
+		aws ec2 start-instances --instance-ids $$INSTANCE_ID --region $(shell grep 'aws_region' terraform.tfvars 2>/dev/null | cut -d'"' -f2 || echo us-west-1) && \
+		echo "Waiting for instance to be running..." && \
+		aws ec2 wait instance-running --instance-ids $$INSTANCE_ID --region $(shell grep 'aws_region' terraform.tfvars 2>/dev/null | cut -d'"' -f2 || echo us-west-1) && \
+		echo "Instance started successfully"; \
+	elif [ "$$STATE" = "running" ]; then \
+		echo "Instance already running"; \
+	else \
+		echo "Instance is in state: $$STATE"; \
+	fi
+
+dev-stop: .check-aws-cli
+	@echo "Stopping development instance..."
+	@INSTANCE_ID=$$($(CONTAINER_RUNTIME) run --rm \
+		-v $(PWD):/workspace \
+		-v $(AWS_DIR):/root/.aws:ro \
+		$(CONTAINER_ENV_ARGS) \
+		aws-dev \
+		output -raw dev_instance_id 2>/dev/null) && \
+	if [ -z "$$INSTANCE_ID" ] || [ "$$INSTANCE_ID" = "null" ]; then \
+		echo "Dev instance not deployed" && exit 1; \
+	fi && \
+	aws ec2 stop-instances --instance-ids $$INSTANCE_ID --region $(shell grep 'aws_region' terraform.tfvars 2>/dev/null | cut -d'"' -f2 || echo us-west-1) && \
+	echo "Instance $$INSTANCE_ID stopped (disk persists)"
+
+dev-ssh: .check-aws-cli
+	@echo "Connecting to development instance..."
+	@INSTANCE_ID=$$($(CONTAINER_RUNTIME) run --rm \
+		-v $(PWD):/workspace \
+		-v $(AWS_DIR):/root/.aws:ro \
+		$(CONTAINER_ENV_ARGS) \
+		aws-dev \
+		output -raw dev_instance_id 2>/dev/null) && \
+	if [ -z "$$INSTANCE_ID" ] || [ "$$INSTANCE_ID" = "null" ]; then \
+		echo "Dev instance not deployed. Run: make apply" && exit 1; \
+	fi && \
+	echo "Starting SSM session to $$INSTANCE_ID..." && \
+	aws ssm start-session --target $$INSTANCE_ID --region $(shell grep 'aws_region' terraform.tfvars 2>/dev/null | cut -d'"' -f2 || echo us-west-1)
+
+dev-status: .check-aws-cli
+	@INSTANCE_ID=$$($(CONTAINER_RUNTIME) run --rm \
+		-v $(PWD):/workspace \
+		-v $(AWS_DIR):/root/.aws:ro \
+		$(CONTAINER_ENV_ARGS) \
+		aws-dev \
+		output -raw dev_instance_id 2>/dev/null) && \
+	if [ -z "$$INSTANCE_ID" ] || [ "$$INSTANCE_ID" = "null" ]; then \
+		echo "Dev instance not deployed"; \
+	else \
+		REGION=$$(grep 'aws_region' terraform.tfvars 2>/dev/null | cut -d'"' -f2); \
+		[ -z "$$REGION" ] && REGION=us-west-1; \
+		echo "Instance ID: $$INSTANCE_ID" && \
+		aws ec2 describe-instances --instance-ids $$INSTANCE_ID --region $$REGION \
+			--query 'Reservations[0].Instances[0].[InstanceId,InstanceType,State.Name,PublicIpAddress]' \
+			--output table; \
+	fi

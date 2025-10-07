@@ -1,0 +1,33 @@
+# Terraform Variables Example
+# Copy to terraform.tfvars and customize as needed
+
+# AWS Region
+# aws_region = "us-west-1"
+
+# Project name (used for resource naming)
+# project_name = "aws-infrastructure"
+
+# Database Configuration
+# db_identifier = "aurora-serverless-dev"
+# db_name = "mydb"
+# db_username = "admin"
+# Note: Password is auto-generated via random_password resource
+
+# Aurora Serverless v2 Configuration
+# serverless_min_capacity = 0        # 0 enables auto-pause
+# serverless_max_capacity = 1        # Low max for cost savings
+# seconds_until_auto_pause = 300     # 5 minutes idle before pause
+
+# Database Access
+# publicly_accessible = true
+# allowed_cidr_blocks = ["0.0.0.0/0"]  # Restrict for production!
+
+# Backup Configuration
+# backup_retention_period = 7        # Days to retain backups
+
+# Development Instance (optional)
+# Enable with: enable_dev_instance = true
+# enable_dev_instance = false
+# dev_instance_type = "t3.micro"     # ~$6/month on-demand
+# dev_volume_size = 20               # GB, ~$2/month
+

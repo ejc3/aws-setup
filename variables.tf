@@ -88,8 +88,21 @@ variable "enable_account_tags" {
   default     = false
 }
 
-variable "github_repo" {
-  description = "GitHub repository in format: username/repo"
+# Development Instance Variables
+variable "enable_dev_instance" {
+  description = "Enable EC2 development instance"
+  type        = bool
+  default     = true
+}
+
+variable "dev_instance_type" {
+  description = "EC2 instance type for dev instance"
   type        = string
-  default     = ""
+  default     = "t4g.medium"
+}
+
+variable "dev_volume_size" {
+  description = "Size of persistent EBS volume in GB"
+  type        = number
+  default     = 100
 }
