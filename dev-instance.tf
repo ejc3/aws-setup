@@ -216,6 +216,9 @@ resource "aws_instance" "dev" {
   # Bootstrap script
   user_data = file("${path.module}/user-data.sh")
 
+  # Automatically recreate instance when user-data changes (declarative!)
+  user_data_replace_on_change = true
+
   tags = {
     Name        = "${var.project_name}-dev-instance"
     Purpose     = "development"
