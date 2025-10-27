@@ -25,9 +25,9 @@ dnf install -y \
 echo "Installing Podman from Rocky Linux repository..."
 # Install curl separately with --allowerasing to handle conflicts
 dnf install -y curl --allowerasing
-dnf config-manager --add-repo=https://download.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
+dnf config-manager --add-repo=https://download.rockylinux.org/pub/rocky/9/AppStream/aarch64/os/
 rpm --import https://download.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-9 || true
-dnf install -y podman --nogpgcheck --skip-broken --repofrompath=rocky9,https://download.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
+dnf install -y podman --nogpgcheck --skip-broken --repofrompath=rocky9,https://download.rockylinux.org/pub/rocky/9/AppStream/aarch64/os/
 podman --version
 
 # Install Terraform (detect architecture)
