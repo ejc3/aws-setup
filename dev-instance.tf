@@ -1,36 +1,41 @@
-# Development Instance - Simple On-Demand with Stop/Start
-# Cost: ~$8/month - zero complexity, everything persists
+# Production Instances - 2 instances behind ALB
+# Cost: ~$16/month for 2 instances, high availability
 
-# Latest Amazon Linux 2023 AMI
-data "aws_ami" "amazon_linux_2023" {
-  count       = var.enable_dev_instance ? 1 : 0
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-arm64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
+# Custom AMI with all tools pre-installed (Podman, Buck2, Terraform, etc.)
+locals {
+  custom_ami_id = "ami-0fc1b36e437044ea7" # Built with Packer
 }
 
-# Security group for dev instance
+# Security group for production instances
 resource "aws_security_group" "dev" {
   count       = var.enable_dev_instance ? 1 : 0
-  name_prefix = "${var.project_name}-dev-sg-"
-  description = "Security group for development instance"
+  name_prefix = "${var.project_name}-prod-sg-"
+  description = "Security group for production instances"
   vpc_id      = local.vpc_id
 
   lifecycle {
     create_before_destroy = true
   }
 
-  # No inbound rules - using SSM for access
-  # All outbound traffic allowed for package installation, git, etc.
+  # Proxy traffic from ALB (port 8080)
+  ingress {
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb[0].id]
+    description     = "Proxy traffic from ALB"
+  }
+
+  # Health check endpoint from ALB (port 8081)
+  ingress {
+    from_port       = 8081
+    to_port         = 8081
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb[0].id]
+    description     = "Health checks from ALB"
+  }
+
+  # All outbound traffic allowed for registry pulls, etc.
   egress {
     from_port   = 0
     to_port     = 0
@@ -39,7 +44,7 @@ resource "aws_security_group" "dev" {
   }
 
   tags = {
-    Name = "${var.project_name}-dev-sg"
+    Name = "${var.project_name}-prod-sg"
   }
 }
 
@@ -191,12 +196,12 @@ resource "aws_security_group" "vpc_endpoints" {
   }
 }
 
-# Development instance (public IP for GitHub access)
+# Production instances (2 instances for high availability)
 resource "aws_instance" "dev" {
-  count                       = var.enable_dev_instance ? 1 : 0
-  ami                         = data.aws_ami.amazon_linux_2023[0].id
+  count                       = var.enable_dev_instance ? 2 : 0
+  ami                         = local.custom_ami_id
   instance_type               = var.dev_instance_type
-  subnet_id                   = aws_subnet.subnet_a.id
+  subnet_id                   = count.index == 0 ? aws_subnet.subnet_a.id : aws_subnet.subnet_b.id
   vpc_security_group_ids      = [aws_security_group.dev[0].id]
   iam_instance_profile        = aws_iam_instance_profile.dev[0].name
   associate_public_ip_address = true
@@ -209,20 +214,16 @@ resource "aws_instance" "dev" {
     encrypted             = true
 
     tags = {
-      Name = "${var.project_name}-dev-volume"
+      Name = "${var.project_name}-prod-volume-${count.index + 1}"
     }
   }
 
-  # Bootstrap script
-  user_data = file("${path.module}/user-data.sh")
-
-  # Automatically recreate instance when user-data changes (declarative!)
-  user_data_replace_on_change = true
+  # No user-data needed - AMI has all tools pre-installed
 
   tags = {
-    Name        = "${var.project_name}-dev-instance"
-    Purpose     = "development"
-    Environment = "dev"
+    Name        = "${var.project_name}-prod-instance-${count.index + 1}"
+    Purpose     = "production"
+    Environment = "prod"
     ManagedBy   = "terraform"
     AutoDeploy  = "true"
   }
@@ -232,6 +233,14 @@ resource "aws_instance" "dev" {
       ami, # Don't force replacement on AMI updates
     ]
   }
+}
+
+# Register instances with ALB target group
+resource "aws_lb_target_group_attachment" "proxy" {
+  count            = var.enable_dev_instance ? 2 : 0
+  target_group_arn = aws_lb_target_group.proxy[0].arn
+  target_id        = aws_instance.dev[count.index].id
+  port             = 8080
 }
 
 # Upload container deployment script to instance

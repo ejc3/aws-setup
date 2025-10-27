@@ -76,20 +76,36 @@ output "auto_pause_config" {
   }
 }
 
-# Development Instance Outputs
-output "dev_instance_id" {
-  description = "Development instance ID"
-  value       = var.enable_dev_instance ? aws_instance.dev[0].id : null
+# Production Instance Outputs
+output "prod_instance_ids" {
+  description = "Production instance IDs"
+  value       = var.enable_dev_instance ? aws_instance.dev[*].id : []
 }
 
-output "dev_instance_state" {
-  description = "Development instance state"
-  value       = var.enable_dev_instance ? aws_instance.dev[0].instance_state : null
+output "prod_instance_states" {
+  description = "Production instance states"
+  value       = var.enable_dev_instance ? aws_instance.dev[*].instance_state : []
 }
 
-output "dev_ssh_command" {
-  description = "Command to SSH into dev instance via SSM"
-  value       = var.enable_dev_instance ? "aws ssm start-session --target ${aws_instance.dev[0].id} --region ${var.aws_region}" : "Dev instance not enabled"
+output "prod_ssh_commands" {
+  description = "Commands to SSH into production instances via SSM"
+  value       = var.enable_dev_instance ? [for inst in aws_instance.dev : "aws ssm start-session --target ${inst.id} --region ${var.aws_region}"] : []
+}
+
+# ALB Outputs
+output "alb_dns_name" {
+  description = "ALB DNS name for accessing the application"
+  value       = var.enable_dev_instance ? aws_lb.main[0].dns_name : null
+}
+
+output "alb_url" {
+  description = "Full ALB URL"
+  value       = var.enable_dev_instance ? "http://${aws_lb.main[0].dns_name}" : null
+}
+
+output "alb_zone_id" {
+  description = "ALB zone ID for Route53 records"
+  value       = var.enable_dev_instance ? aws_lb.main[0].zone_id : null
 }
 
 # ECR Outputs
