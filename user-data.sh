@@ -11,8 +11,6 @@ dnf update -y
 dnf install -y \
   git \
   make \
-  docker \
-  podman \
   python3 \
   python3-pip \
   vim \
@@ -21,7 +19,15 @@ dnf install -y \
   unzip \
   curl \
   tar \
-  zstd
+  zstd \
+  dnf-plugins-core
+
+# Install Podman from Rocky Linux 9 repository (AL2023 doesn't have it in default repos)
+echo "Installing Podman from Rocky Linux repository..."
+yum-config-manager --add-repo=https://download.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
+rpm --import https://download.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-9 || true
+dnf install -y podman --nogpgcheck --repofrompath=rocky9,https://download.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
+podman --version
 
 # Install Terraform (detect architecture)
 TERRAFORM_VERSION="1.9.0"
@@ -61,18 +67,26 @@ curl -fsSL https://tailscale.com/install.sh | sh
 # Tailscale auth key will be provided via SSM Parameter Store
 # and configured after instance launch
 
-# Start and enable Docker
-systemctl start docker
-systemctl enable docker
-
-# Add ec2-user to docker group
-usermod -aG docker ec2-user
-
 # Start and enable Podman socket
 systemctl enable --now podman.socket
 
 # Configure Podman for ec2-user (rootless)
 sudo -u ec2-user podman system migrate || true
+
+# Authenticate Podman to GHCR using token from Secrets Manager
+echo "Authenticating Podman to GHCR..."
+GITHUB_TOKEN=$(aws secretsmanager get-secret-value \
+  --secret-id github-deploy-token \
+  --region us-west-1 \
+  --query SecretString \
+  --output text 2>/dev/null || echo "")
+
+if [ -n "$GITHUB_TOKEN" ]; then
+  echo "$GITHUB_TOKEN" | sudo -u ec2-user podman login ghcr.io -u ejc3 --password-stdin
+  echo "GHCR authentication successful"
+else
+  echo "WARNING: Could not retrieve GitHub token from Secrets Manager"
+fi
 
 # Set up buckman directory
 mkdir -p /home/ec2-user/buckman
@@ -92,7 +106,7 @@ Development Instance - Quick Start
 ==================================
 
 This instance has the following tools installed:
-- git, make, docker, podman
+- git, make, podman
 - buck2 (in /usr/local/bin)
 - terraform (in /usr/local/bin)
 - python3, pip3
@@ -110,7 +124,6 @@ Everything in /home/ec2-user persists when you stop/start the instance.
 
 Buckman deployment directory: /home/ec2-user/buckman
 
-To use Docker: docker commands work (ec2-user is in docker group)
 To use Podman: podman commands work (rootless)
 To use Buck2: buck2 --version
 
