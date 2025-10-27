@@ -200,7 +200,7 @@ dev-start: .aws-login
 		echo "Instance is in state: $$STATE"; \
 	fi
 
-dev-stop: .check-aws-cli
+dev-stop: .check-aws-cli .container-built
 	@echo "Stopping development instance..."
 	@INSTANCE_ID=$$($(CONTAINER_RUNTIME) run --rm \
 		-v $(PWD):/workspace \
@@ -214,7 +214,7 @@ dev-stop: .check-aws-cli
 	aws ec2 stop-instances --instance-ids $$INSTANCE_ID --region $(shell grep 'aws_region' terraform.tfvars 2>/dev/null | cut -d'"' -f2 || echo us-west-1) && \
 	echo "Instance $$INSTANCE_ID stopped (disk persists)"
 
-dev-ssh: .check-aws-cli
+dev-ssh: .check-aws-cli .container-built
 	@echo "Connecting to development instance..."
 	@INSTANCE_ID=$$($(CONTAINER_RUNTIME) run --rm \
 		-v $(PWD):/workspace \
@@ -228,7 +228,7 @@ dev-ssh: .check-aws-cli
 	echo "Starting SSM session to $$INSTANCE_ID..." && \
 	aws ssm start-session --target $$INSTANCE_ID --region $(shell grep 'aws_region' terraform.tfvars 2>/dev/null | cut -d'"' -f2 || echo us-west-1)
 
-dev-status: .check-aws-cli
+dev-status: .check-aws-cli .container-built
 	@INSTANCE_ID=$$($(CONTAINER_RUNTIME) run --rm \
 		-v $(PWD):/workspace \
 		-v $(AWS_DIR):/root/.aws:ro \
