@@ -7,7 +7,7 @@ set -e
 # Update system
 dnf update -y
 
-# Install development tools
+# Install development tools (without curl initially to avoid conflicts)
 dnf install -y \
   git \
   make \
@@ -17,16 +17,17 @@ dnf install -y \
   tmux \
   jq \
   unzip \
-  curl \
   tar \
   zstd \
   dnf-plugins-core
 
 # Install Podman from Rocky Linux 9 repository (AL2023 doesn't have it in default repos)
 echo "Installing Podman from Rocky Linux repository..."
+# Install curl separately with --allowerasing to handle conflicts
+dnf install -y curl --allowerasing
 yum-config-manager --add-repo=https://download.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
 rpm --import https://download.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-9 || true
-dnf install -y podman --nogpgcheck --repofrompath=rocky9,https://download.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
+dnf install -y podman --nogpgcheck --skip-broken --repofrompath=rocky9,https://download.rockylinux.org/pub/rocky/9/AppStream/x86_64/os/
 podman --version
 
 # Install Terraform (detect architecture)
