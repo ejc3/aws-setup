@@ -218,7 +218,8 @@ resource "aws_instance" "dev" {
     }
   }
 
-  # No user-data needed - AMI has all tools pre-installed
+  # No user-data needed - everything is pre-baked in the AMI
+  # The buckman-proxy service will start automatically on boot
 
   tags = {
     Name        = "${var.project_name}-prod-instance-${count.index + 1}"

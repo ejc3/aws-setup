@@ -144,6 +144,60 @@ build {
     ]
   }
 
+  # Clone buckman repository and set up application
+  provisioner "shell" {
+    inline = [
+      "echo 'Cloning buckman repository...'",
+      "sudo -u ec2-user git clone https://github.com/ejc3/buckman.git /home/ec2-user/buckman",
+      "sudo -u ec2-user chmod -R 755 /home/ec2-user/buckman",
+    ]
+  }
+
+  # Install Python dependencies for buckman
+  provisioner "shell" {
+    inline = [
+      "echo 'Installing buckman Python dependencies...'",
+      "cd /home/ec2-user/buckman",
+      "sudo -u ec2-user python3 -m pip install --user -e .",
+    ]
+  }
+
+  # Generate routes.json for external services
+  provisioner "shell" {
+    inline = [
+      "echo 'Generating routes.json...'",
+      "cd /home/ec2-user/buckman",
+      "sudo -u ec2-user python3 -c 'import json; from pathlib import Path; external_file = Path(\"external_routes.json\"); data = json.loads(external_file.read_text()) if external_file.exists() else {\"services\": {}}; Path(\"infra/routes.json\").write_text(json.dumps(data, indent=2) + \"\\n\")'",
+    ]
+  }
+
+  # Create buckman-proxy systemd service
+  provisioner "shell" {
+    inline = [
+      "sudo tee /etc/systemd/system/buckman-proxy.service > /dev/null <<'EOF'",
+      "[Unit]",
+      "Description=Buckman Proxy Infrastructure",
+      "After=network.target podman.service",
+      "Wants=podman.service",
+      "",
+      "[Service]",
+      "Type=simple",
+      "User=ec2-user",
+      "WorkingDirectory=/home/ec2-user/buckman",
+      "Environment=PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/home/ec2-user/.local/bin",
+      "ExecStart=/usr/bin/python3 -m infra.runner --mode prod --no-routes-updater",
+      "Restart=always",
+      "RestartSec=10",
+      "StandardOutput=journal",
+      "StandardError=journal",
+      "",
+      "[Install]",
+      "WantedBy=multi-user.target",
+      "EOF",
+      "sudo systemctl enable buckman-proxy",
+    ]
+  }
+
   # Clean up
   provisioner "shell" {
     inline = [
