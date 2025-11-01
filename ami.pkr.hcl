@@ -148,7 +148,7 @@ build {
   provisioner "shell" {
     inline = [
       "echo 'Cloning buckman repository...'",
-      "sudo -u ec2-user git clone https://github.com/ejc3/buckman.git /home/ec2-user/buckman",
+      "sudo -u ec2-user GIT_TERMINAL_PROMPT=0 git clone https://github.com/ejc3/buckman.git /home/ec2-user/buckman",
       "sudo -u ec2-user chmod -R 755 /home/ec2-user/buckman",
     ]
   }
