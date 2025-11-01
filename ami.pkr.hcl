@@ -144,12 +144,15 @@ build {
     ]
   }
 
-  # Clone buckman repository and set up application
+  # Download buckman repository (using curl/tar to avoid git credentials)
   provisioner "shell" {
     inline = [
-      "echo 'Cloning buckman repository...'",
-      "sudo -u ec2-user git -c credential.helper= -c core.askPass= clone --depth 1 https://github.com/ejc3/buckman.git /home/ec2-user/buckman",
+      "echo 'Downloading buckman repository...'",
+      "curl -L https://github.com/ejc3/buckman/archive/refs/heads/main.tar.gz -o /tmp/buckman.tar.gz",
+      "sudo -u ec2-user tar -xzf /tmp/buckman.tar.gz -C /home/ec2-user",
+      "sudo -u ec2-user mv /home/ec2-user/buckman-main /home/ec2-user/buckman",
       "sudo -u ec2-user chmod -R 755 /home/ec2-user/buckman",
+      "rm /tmp/buckman.tar.gz",
     ]
   }
 
