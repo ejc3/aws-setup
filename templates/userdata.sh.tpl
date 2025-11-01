@@ -8,6 +8,15 @@ exec 2>&1
 
 echo "==> Starting Buckman infrastructure bootstrap at $(date)"
 
+# Install Podman
+echo "==> Installing Podman"
+dnf install -y podman
+
+# Configure Podman for rootless operation
+echo "==> Configuring Podman"
+sudo -u ec2-user podman system migrate
+sudo -u ec2-user systemctl --user enable podman.socket
+
 # Get GitHub token from Secrets Manager
 echo "==> Fetching GitHub token from Secrets Manager"
 GITHUB_TOKEN=$(aws secretsmanager get-secret-value \

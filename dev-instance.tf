@@ -1,9 +1,10 @@
 # Production Instances - 2 instances behind ALB
 # Cost: ~$16/month for 2 instances, high availability
 
-# Custom AMI with all tools pre-installed (Podman, Buck2, Terraform, etc.)
+# Standard Amazon Linux 2023 AMI (ARM64)
+# Podman installed via user-data on first boot
 locals {
-  custom_ami_id = "ami-0fc1b36e437044ea7" # Built with Packer
+  al2023_ami_id = "ami-0e3605f8a6c0853e5" # Amazon Linux 2023.9 ARM64
 }
 
 # Security group for production instances
@@ -199,7 +200,7 @@ resource "aws_security_group" "vpc_endpoints" {
 # Production instances (2 instances for high availability)
 resource "aws_instance" "dev" {
   count                       = var.enable_dev_instance ? 2 : 0
-  ami                         = local.custom_ami_id
+  ami                         = local.al2023_ami_id
   instance_type               = var.dev_instance_type
   subnet_id                   = count.index == 0 ? aws_subnet.subnet_a.id : aws_subnet.subnet_b.id
   vpc_security_group_ids      = [aws_security_group.dev[0].id]
