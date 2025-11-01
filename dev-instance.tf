@@ -218,8 +218,11 @@ resource "aws_instance" "dev" {
     }
   }
 
-  # No user-data needed - everything is pre-baked in the AMI
-  # The buckman-proxy service will start automatically on boot
+  # Bootstrap containerized infrastructure on first boot
+  user_data = base64encode(templatefile("${path.module}/templates/userdata.sh.tpl", {
+    github_token_secret_arn = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:github-deploy-token"
+    aws_region              = var.aws_region
+  }))
 
   tags = {
     Name        = "${var.project_name}-prod-instance-${count.index + 1}"
