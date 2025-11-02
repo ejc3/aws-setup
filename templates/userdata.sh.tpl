@@ -21,33 +21,36 @@ unzip -q /tmp/awscliv2.zip -d /tmp
 /tmp/aws/install
 rm -rf /tmp/awscliv2.zip /tmp/aws
 
-# Configure Podman for rootless operation
+# Configure Podman for root operation
 echo "==> Configuring Podman"
-sudo -u ubuntu podman system migrate
+# No migration needed - using root Podman
 
-# Login to ECR (uses IAM role automatically)
+# Login to ECR as root (uses IAM role automatically)
 echo "==> Logging into Amazon ECR"
 aws ecr get-login-password --region ${aws_region} | \
-  sudo -u ubuntu podman login --username AWS --password-stdin ${ecr_registry}
+  podman login --username AWS --password-stdin ${ecr_registry}
 
-# Login to GitHub Container Registry (for Buck app images)
+# Login to GitHub Container Registry as root (for Buck app images)
 echo "==> Logging into GitHub Container Registry"
 GITHUB_TOKEN=$(aws secretsmanager get-secret-value \
   --secret-id github-ghcr-token \
   --query SecretString \
   --output text \
   --region ${aws_region})
-echo "$GITHUB_TOKEN" | sudo -u ubuntu podman login ghcr.io -u ej-campbell --password-stdin
+echo "$GITHUB_TOKEN" | podman login ghcr.io -u ej-campbell --password-stdin
+
+# Verify auth file was created
+echo "==> Verifying GHCR auth file"
+ls -la /run/containers/0/auth.json
 
 # Pull consolidated infrastructure image from ECR
 echo "==> Pulling buckman infrastructure image"
-sudo -u ubuntu podman pull ${ecr_buckman_runner_image}
+podman pull ${ecr_buckman_runner_image}
 
-# Create directory for version-server state file
+# Create directory for version-server state file (owned by root)
 mkdir -p /var/run/buckman
-chown ubuntu:ubuntu /var/run/buckman
 
-# Create systemd service for version-server
+# Create systemd service for version-server (runs as root)
 echo "==> Creating version-server systemd service"
 cat > /etc/systemd/system/buckman-version-server.service <<'EOF'
 [Unit]
@@ -57,18 +60,16 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=ubuntu
 ExecStartPre=-/usr/bin/podman stop buckman-version-server
 ExecStartPre=-/usr/bin/podman rm buckman-version-server
 ExecStart=/usr/bin/podman run \
   --rm \
   --name buckman-version-server \
-  --init \
   -p 8081:8081 \
   -v /var/run/buckman:/var/run:z \
   -v /run/podman/podman.sock:/run/podman/podman.sock:z \
   ${ecr_buckman_runner_image} \
-  python version-server.py
+  python /app/version-server.py
 ExecStop=/usr/bin/podman stop buckman-version-server
 Restart=always
 RestartSec=10
@@ -79,26 +80,26 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-# Create systemd service for runner (with Podman socket mount)
+# Create systemd service for runner (runs as root with auth file mount)
 echo "==> Creating buckman-runner systemd service"
 cat > /etc/systemd/system/buckman-runner.service <<'EOF'
 [Unit]
 Description=Buckman Proxy Runner
-After=network-online.target podman.socket buckman-version-server.service
-Wants=network-online.target podman.socket
+After=network-online.target buckman-version-server.service
+Wants=network-online.target
 Requires=buckman-version-server.service
 
 [Service]
 Type=simple
-User=ubuntu
 ExecStartPre=-/usr/bin/podman stop buckman-runner
 ExecStartPre=-/usr/bin/podman rm buckman-runner
 ExecStart=/usr/bin/podman run \
   --rm \
   --name buckman-runner \
-  --init \
   -p 8080:8080 \
+  -e REGISTRY_AUTH_FILE=/run/containers-auth/auth.json \
   -v /run/podman/podman.sock:/run/podman/podman.sock:z \
+  -v /run/containers/0/auth.json:/run/containers-auth/auth.json:ro,z \
   ${ecr_buckman_runner_image}
 ExecStop=/usr/bin/podman stop buckman-runner
 Restart=always

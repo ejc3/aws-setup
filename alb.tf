@@ -70,7 +70,7 @@ resource "aws_lb_target_group" "proxy" {
   protocol = "HTTP"
   vpc_id   = local.vpc_id
 
-  # Health check on version-server endpoint
+  # Health check on proxy endpoint
   health_check {
     enabled             = true
     healthy_threshold   = 2
@@ -78,7 +78,7 @@ resource "aws_lb_target_group" "proxy" {
     timeout             = 5
     interval            = 10
     path                = "/health"
-    port                = 8081
+    port                = 8080
     protocol            = "HTTP"
     matcher             = "200"
   }
