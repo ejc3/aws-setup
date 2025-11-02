@@ -8,38 +8,35 @@ exec 2>&1
 
 echo "==> Starting Buckman infrastructure bootstrap at $(date)"
 
-# Install Podman
-echo "==> Installing Podman"
-dnf install -y podman
+# Install Podman and dependencies
+echo "==> Installing Podman and dependencies"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y podman unzip curl
+
+# Install AWS CLI v2 (official method for Ubuntu ARM64)
+echo "==> Installing AWS CLI v2"
+curl -s "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "/tmp/awscliv2.zip"
+unzip -q /tmp/awscliv2.zip -d /tmp
+/tmp/aws/install
+rm -rf /tmp/awscliv2.zip /tmp/aws
 
 # Configure Podman for rootless operation
 echo "==> Configuring Podman"
-sudo -u ec2-user podman system migrate
-sudo -u ec2-user systemctl --user enable podman.socket
+sudo -u ubuntu podman system migrate
 
-# Get GitHub token from Secrets Manager
-echo "==> Fetching GitHub token from Secrets Manager"
-GITHUB_TOKEN=$(aws secretsmanager get-secret-value \
-  --secret-id "${github_token_secret_arn}" \
-  --region "${aws_region}" \
-  --query 'SecretString' \
-  --output text)
+# Login to ECR (uses IAM role automatically)
+echo "==> Logging into Amazon ECR"
+aws ecr get-login-password --region ${aws_region} | \
+  sudo -u ubuntu podman login --username AWS --password-stdin ${ecr_registry}
 
-if [ -z "$GITHUB_TOKEN" ]; then
-  echo "ERROR: Failed to fetch GitHub token from Secrets Manager"
-  exit 1
-fi
+# Pull consolidated infrastructure image from ECR
+echo "==> Pulling buckman infrastructure image"
+sudo -u ubuntu podman pull ${ecr_buckman_runner_image}
 
-# Login to GitHub Container Registry
-echo "==> Logging into GitHub Container Registry"
-echo "$GITHUB_TOKEN" | podman login ghcr.io -u ej-campbell --password-stdin
-
-# Pull infrastructure images
-echo "==> Pulling buckman-runner image"
-podman pull ghcr.io/ej-campbell/buckman-runner:latest
-
-echo "==> Pulling buckman-version-server image"
-podman pull ghcr.io/ej-campbell/buckman-version-server:latest
+# Create directory for version-server state file
+mkdir -p /var/run/buckman
+chown ubuntu:ubuntu /var/run/buckman
 
 # Create systemd service for version-server
 echo "==> Creating version-server systemd service"
@@ -51,7 +48,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=ec2-user
+User=ubuntu
 ExecStartPre=-/usr/bin/podman stop buckman-version-server
 ExecStartPre=-/usr/bin/podman rm buckman-version-server
 ExecStart=/usr/bin/podman run \
@@ -59,8 +56,10 @@ ExecStart=/usr/bin/podman run \
   --name buckman-version-server \
   --init \
   -p 8081:8081 \
-  -v /var/run:/var/run:z \
-  ghcr.io/ej-campbell/buckman-version-server:latest
+  -v /var/run/buckman:/var/run:z \
+  -v /run/podman/podman.sock:/run/podman/podman.sock:z \
+  ${ecr_buckman_runner_image} \
+  python version-server.py
 ExecStop=/usr/bin/podman stop buckman-version-server
 Restart=always
 RestartSec=10
@@ -82,7 +81,7 @@ Requires=buckman-version-server.service
 
 [Service]
 Type=simple
-User=ec2-user
+User=ubuntu
 ExecStartPre=-/usr/bin/podman stop buckman-runner
 ExecStartPre=-/usr/bin/podman rm buckman-runner
 ExecStart=/usr/bin/podman run \
@@ -91,7 +90,7 @@ ExecStart=/usr/bin/podman run \
   --init \
   -p 8080:8080 \
   -v /run/podman/podman.sock:/run/podman/podman.sock:z \
-  ghcr.io/ej-campbell/buckman-runner:latest
+  ${ecr_buckman_runner_image}
 ExecStop=/usr/bin/podman stop buckman-runner
 Restart=always
 RestartSec=10

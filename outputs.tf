@@ -113,3 +113,13 @@ output "ecr_repository_url" {
   description = "ECR repository URL for all demos"
   value       = aws_ecr_repository.demos.repository_url
 }
+
+output "ecr_buckman_runner_url" {
+  description = "ECR repository URL for buckman-runner"
+  value       = aws_ecr_repository.buckman_runner.repository_url
+}
+
+output "ecr_buckman_version_server_url" {
+  description = "ECR repository URL for buckman-version-server"
+  value       = aws_ecr_repository.buckman_version_server.repository_url
+}

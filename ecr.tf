@@ -35,3 +35,72 @@ resource "aws_ecr_lifecycle_policy" "demos" {
     }]
   })
 }
+
+# ECR Repository for buckman-runner (infrastructure deployment)
+resource "aws_ecr_repository" "buckman_runner" {
+  name                 = "${var.project_name}/buckman-runner"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = false
+  }
+
+  tags = {
+    Name    = "${var.project_name}-buckman-runner"
+    Purpose = "Infrastructure deployment - runner service"
+  }
+}
+
+# ECR Repository for buckman-version-server (infrastructure deployment)
+resource "aws_ecr_repository" "buckman_version_server" {
+  name                 = "${var.project_name}/buckman-version-server"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = false
+  }
+
+  tags = {
+    Name    = "${var.project_name}-buckman-version-server"
+    Purpose = "Infrastructure deployment - version server"
+  }
+}
+
+# ECR lifecycle policy for infrastructure images (keep last 10)
+resource "aws_ecr_lifecycle_policy" "buckman_runner" {
+  repository = aws_ecr_repository.buckman_runner.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}
+
+resource "aws_ecr_lifecycle_policy" "buckman_version_server" {
+  repository = aws_ecr_repository.buckman_version_server.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Keep last 10 images"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = {
+        type = "expire"
+      }
+    }]
+  })
+}

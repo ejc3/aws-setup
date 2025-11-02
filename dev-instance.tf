@@ -1,10 +1,10 @@
 # Production Instances - 2 instances behind ALB
 # Cost: ~$16/month for 2 instances, high availability
 
-# Standard Amazon Linux 2023 AMI (ARM64)
+# Ubuntu 24.04 LTS AMI (ARM64)
 # Podman installed via user-data on first boot
 locals {
-  al2023_ami_id = "ami-0e3605f8a6c0853e5" # Amazon Linux 2023.9 ARM64
+  ubuntu2404_ami_id = "ami-002a311ff44607e17" # Ubuntu 24.04 LTS ARM64
 }
 
 # Security group for production instances
@@ -200,7 +200,7 @@ resource "aws_security_group" "vpc_endpoints" {
 # Production instances (2 instances for high availability)
 resource "aws_instance" "dev" {
   count                       = var.enable_dev_instance ? 2 : 0
-  ami                         = local.al2023_ami_id
+  ami                         = local.ubuntu2404_ami_id
   instance_type               = var.dev_instance_type
   subnet_id                   = count.index == 0 ? aws_subnet.subnet_a.id : aws_subnet.subnet_b.id
   vpc_security_group_ids      = [aws_security_group.dev[0].id]
@@ -221,8 +221,9 @@ resource "aws_instance" "dev" {
 
   # Bootstrap containerized infrastructure on first boot
   user_data = base64encode(templatefile("${path.module}/templates/userdata.sh.tpl", {
-    github_token_secret_arn = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:github-deploy-token"
-    aws_region              = var.aws_region
+    aws_region               = var.aws_region
+    ecr_registry             = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
+    ecr_buckman_runner_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${var.project_name}/buckman-runner:latest"
   }))
 
   tags = {
