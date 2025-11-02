@@ -30,6 +30,15 @@ echo "==> Logging into Amazon ECR"
 aws ecr get-login-password --region ${aws_region} | \
   sudo -u ubuntu podman login --username AWS --password-stdin ${ecr_registry}
 
+# Login to GitHub Container Registry (for Buck app images)
+echo "==> Logging into GitHub Container Registry"
+GITHUB_TOKEN=$(aws secretsmanager get-secret-value \
+  --secret-id github-ghcr-token \
+  --query SecretString \
+  --output text \
+  --region ${aws_region})
+echo "$GITHUB_TOKEN" | sudo -u ubuntu podman login ghcr.io -u ej-campbell --password-stdin
+
 # Pull consolidated infrastructure image from ECR
 echo "==> Pulling buckman infrastructure image"
 sudo -u ubuntu podman pull ${ecr_buckman_runner_image}
