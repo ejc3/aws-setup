@@ -98,7 +98,7 @@ variable "enable_dev_instance" {
 variable "dev_instance_type" {
   description = "EC2 instance type for dev instance"
   type        = string
-  default     = "t4g.medium"
+  default     = "t3.medium"
 }
 
 variable "dev_volume_size" {

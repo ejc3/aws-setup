@@ -1,10 +1,10 @@
 # Production Instances - 2 instances behind ALB
 # Cost: ~$16/month for 2 instances, high availability
 
-# Ubuntu 24.04 LTS AMI (ARM64)
+# Ubuntu 24.04 LTS AMI (AMD64/x86_64)
 # Podman installed via user-data on first boot
 locals {
-  ubuntu2404_ami_id = "ami-002a311ff44607e17" # Ubuntu 24.04 LTS ARM64
+  ubuntu2404_ami_id = "ami-0e6a50b0059fd2cc3" # Ubuntu 24.04 LTS AMD64
 }
 
 # Security group for production instances
