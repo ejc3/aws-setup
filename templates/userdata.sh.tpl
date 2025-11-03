@@ -14,9 +14,9 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y podman unzip curl
 
-# Install AWS CLI v2 (official method for Ubuntu ARM64)
+# Install AWS CLI v2 (official method for Ubuntu AMD64/x86_64)
 echo "==> Installing AWS CLI v2"
-curl -s "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "/tmp/awscliv2.zip"
+curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
 unzip -q /tmp/awscliv2.zip -d /tmp
 /tmp/aws/install
 rm -rf /tmp/awscliv2.zip /tmp/aws
