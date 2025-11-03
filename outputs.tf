@@ -76,20 +76,63 @@ output "auto_pause_config" {
   }
 }
 
-# Production Instance Outputs
-output "prod_instance_ids" {
-  description = "Production instance IDs"
-  value       = var.enable_dev_instance ? aws_instance.dev[*].id : []
+# Auto Scaling Group Outputs
+output "asg_name" {
+  description = "Auto Scaling Group name"
+  value       = var.enable_dev_instance ? aws_autoscaling_group.buckman[0].name : null
 }
 
-output "prod_instance_states" {
-  description = "Production instance states"
-  value       = var.enable_dev_instance ? aws_instance.dev[*].instance_state : []
+output "asg_desired_capacity" {
+  description = "ASG desired capacity"
+  value       = var.enable_dev_instance ? aws_autoscaling_group.buckman[0].desired_capacity : null
 }
 
-output "prod_ssh_commands" {
-  description = "Commands to SSH into production instances via SSM"
-  value       = var.enable_dev_instance ? [for inst in aws_instance.dev : "aws ssm start-session --target ${inst.id} --region ${var.aws_region}"] : []
+output "asg_min_size" {
+  description = "ASG minimum size"
+  value       = var.enable_dev_instance ? aws_autoscaling_group.buckman[0].min_size : null
+}
+
+output "asg_max_size" {
+  description = "ASG maximum size"
+  value       = var.enable_dev_instance ? aws_autoscaling_group.buckman[0].max_size : null
+}
+
+output "launch_template_id" {
+  description = "Launch Template ID"
+  value       = var.enable_dev_instance ? aws_launch_template.buckman[0].id : null
+}
+
+output "launch_template_latest_version" {
+  description = "Latest version of Launch Template"
+  value       = var.enable_dev_instance ? aws_launch_template.buckman[0].latest_version : null
+}
+
+output "instance_refresh_command" {
+  description = "Command to trigger manual instance refresh"
+  value       = var.enable_dev_instance ? "aws autoscaling start-instance-refresh --auto-scaling-group-name ${aws_autoscaling_group.buckman[0].name} --region ${var.aws_region}" : null
+}
+
+# SSM Parameter Store Outputs
+output "ssm_runner_image_tag_parameter" {
+  description = "SSM parameter name for runner image tag"
+  value       = aws_ssm_parameter.runner_image_tag.name
+}
+
+output "ssm_version_server_image_tag_parameter" {
+  description = "SSM parameter name for version-server image tag"
+  value       = aws_ssm_parameter.version_server_image_tag.name
+}
+
+output "current_runner_image_tag" {
+  description = "Current runner image tag from Parameter Store"
+  value       = aws_ssm_parameter.runner_image_tag.value
+  sensitive   = false
+}
+
+output "current_version_server_image_tag" {
+  description = "Current version-server image tag from Parameter Store"
+  value       = aws_ssm_parameter.version_server_image_tag.value
+  sensitive   = false
 }
 
 # ALB Outputs

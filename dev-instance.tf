@@ -79,7 +79,7 @@ resource "aws_iam_role_policy_attachment" "dev_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# Policy to read GitHub token from Secrets Manager and access ECR
+# Policy to read GitHub token from Secrets Manager, access ECR, and read SSM parameters
 resource "aws_iam_role_policy" "dev_secrets" {
   count = var.enable_dev_instance ? 1 : 0
   name  = "${var.project_name}-dev-secrets-policy"
@@ -108,6 +108,16 @@ resource "aws_iam_role_policy" "dev_secrets" {
           "ecr:ListImages"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/buckman/*"
+        ]
       }
     ]
   })
@@ -200,54 +210,5 @@ resource "aws_security_group" "vpc_endpoints" {
   }
 }
 
-# Production instances (2 instances for high availability)
-resource "aws_instance" "dev" {
-  count                       = var.enable_dev_instance ? 2 : 0
-  ami                         = local.ubuntu2404_ami_id
-  instance_type               = var.dev_instance_type
-  subnet_id                   = count.index == 0 ? aws_subnet.subnet_a.id : aws_subnet.subnet_b.id
-  vpc_security_group_ids      = [aws_security_group.dev[0].id]
-  iam_instance_profile        = aws_iam_instance_profile.dev[0].name
-  associate_public_ip_address = true
-
-  # Persistent root volume
-  root_block_device {
-    volume_size           = var.dev_volume_size
-    volume_type           = "gp3"
-    delete_on_termination = false # Volume persists when instance stops
-    encrypted             = true
-
-    tags = {
-      Name = "${var.project_name}-prod-volume-${count.index + 1}"
-    }
-  }
-
-  # Bootstrap containerized infrastructure on first boot
-  user_data = base64encode(templatefile("${path.module}/templates/userdata.sh.tpl", {
-    aws_region               = var.aws_region
-    ecr_registry             = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com"
-    ecr_buckman_runner_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${var.project_name}/buckman-runner:latest"
-  }))
-
-  tags = {
-    Name        = "${var.project_name}-prod-instance-${count.index + 1}"
-    Purpose     = "production"
-    Environment = "prod"
-    ManagedBy   = "terraform"
-    AutoDeploy  = "true"
-  }
-
-  lifecycle {
-    ignore_changes = [
-      ami, # Don't force replacement on AMI updates
-    ]
-  }
-}
-
-# Register instances with ALB target group
-resource "aws_lb_target_group_attachment" "proxy" {
-  count            = var.enable_dev_instance ? 2 : 0
-  target_group_arn = aws_lb_target_group.proxy[0].arn
-  target_id        = aws_instance.dev[count.index].id
-  port             = 8080
-}
+# Static EC2 instances removed - replaced by Auto Scaling Group (see asg.tf and launch_template.tf)
+# ASG automatically manages instance lifecycle and ALB target group registration

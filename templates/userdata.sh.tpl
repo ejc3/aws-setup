@@ -43,16 +43,46 @@ echo "$GITHUB_TOKEN" | podman login ghcr.io -u ej-campbell --password-stdin
 echo "==> Verifying GHCR auth file"
 ls -la /run/containers/0/auth.json
 
-# Pull consolidated infrastructure image from ECR
-echo "==> Pulling buckman infrastructure image"
-podman pull ${ecr_buckman_runner_image}
+# Read image tags from Parameter Store (set by CI on deployment)
+echo "==> Reading image tags from Parameter Store"
+RUNNER_TAG=$(aws ssm get-parameter --name /buckman/runner-image-tag --query Parameter.Value --output text --region ${aws_region})
+VERSION_SERVER_TAG=$(aws ssm get-parameter --name /buckman/version-server-image-tag --query Parameter.Value --output text --region ${aws_region})
+
+echo "Runner image tag: $RUNNER_TAG"
+echo "Version-server image tag: $VERSION_SERVER_TAG"
+
+# Validate tags are not "initial" placeholder (indicates Terraform just created parameters)
+if [ "$RUNNER_TAG" = "initial" ] || [ "$VERSION_SERVER_TAG" = "initial" ]; then
+  echo "ERROR: Parameter Store contains placeholder value 'initial'"
+  echo "This means CI hasn't pushed images yet. Run CI workflow first!"
+  echo "Waiting 60 seconds for CI to update parameters..."
+  sleep 60
+  # Retry once
+  RUNNER_TAG=$(aws ssm get-parameter --name /buckman/runner-image-tag --query Parameter.Value --output text --region ${aws_region})
+  VERSION_SERVER_TAG=$(aws ssm get-parameter --name /buckman/version-server-image-tag --query Parameter.Value --output text --region ${aws_region})
+  if [ "$RUNNER_TAG" = "initial" ] || [ "$VERSION_SERVER_TAG" = "initial" ]; then
+    echo "FATAL: Parameters still 'initial' after retry. CI must run first!"
+    exit 1
+  fi
+fi
+
+# Construct full ECR image URLs
+RUNNER_IMAGE="${account_id}.dkr.ecr.${aws_region}.amazonaws.com/aws-infrastructure/buckman-runner:$RUNNER_TAG"
+VERSION_SERVER_IMAGE="${account_id}.dkr.ecr.${aws_region}.amazonaws.com/aws-infrastructure/buckman-version-server:$VERSION_SERVER_TAG"
+
+# Pull infrastructure images from ECR
+echo "==> Pulling buckman-runner image"
+podman pull $RUNNER_IMAGE
+
+echo "==> Pulling buckman-version-server image"
+podman pull $VERSION_SERVER_IMAGE
 
 # Create directory for version-server state file (owned by root)
 mkdir -p /var/run/buckman
 
 # Create systemd service for version-server (runs as root)
 echo "==> Creating version-server systemd service"
-cat > /etc/systemd/system/buckman-version-server.service <<'EOF'
+cat > /etc/systemd/system/buckman-version-server.service <<EOF
 [Unit]
 Description=Buckman Version Server
 After=network-online.target
@@ -62,14 +92,13 @@ Wants=network-online.target
 Type=simple
 ExecStartPre=-/usr/bin/podman stop buckman-version-server
 ExecStartPre=-/usr/bin/podman rm buckman-version-server
-ExecStart=/usr/bin/podman run \
-  --rm \
-  --name buckman-version-server \
-  -p 8081:8081 \
-  -v /var/run/buckman:/var/run:z \
-  -v /run/podman/podman.sock:/run/podman/podman.sock:z \
-  ${ecr_buckman_runner_image} \
-  python /app/version-server.py
+ExecStart=/usr/bin/podman run \\
+  --rm \\
+  --name buckman-version-server \\
+  -p 8081:8081 \\
+  -v /var/run/buckman:/var/run:z \\
+  -v /run/podman/podman.sock:/run/podman/podman.sock:z \\
+  $VERSION_SERVER_IMAGE
 ExecStop=/usr/bin/podman stop buckman-version-server
 Restart=always
 RestartSec=10
@@ -82,7 +111,7 @@ EOF
 
 # Create systemd service for runner (runs as root with auth file mount)
 echo "==> Creating buckman-runner systemd service"
-cat > /etc/systemd/system/buckman-runner.service <<'EOF'
+cat > /etc/systemd/system/buckman-runner.service <<EOF
 [Unit]
 Description=Buckman Proxy Runner
 After=network-online.target buckman-version-server.service
@@ -93,14 +122,14 @@ Requires=buckman-version-server.service
 Type=simple
 ExecStartPre=-/usr/bin/podman stop buckman-runner
 ExecStartPre=-/usr/bin/podman rm buckman-runner
-ExecStart=/usr/bin/podman run \
-  --rm \
-  --name buckman-runner \
-  -p 8080:8080 \
-  -e REGISTRY_AUTH_FILE=/run/containers-auth/auth.json \
-  -v /run/podman/podman.sock:/run/podman/podman.sock:z \
-  -v /run/containers/0/auth.json:/run/containers-auth/auth.json:ro,z \
-  ${ecr_buckman_runner_image}
+ExecStart=/usr/bin/podman run \\
+  --rm \\
+  --name buckman-runner \\
+  -p 8080:8080 \\
+  -e REGISTRY_AUTH_FILE=/run/containers-auth/auth.json \\
+  -v /run/podman/podman.sock:/run/podman/podman.sock:z \\
+  -v /run/containers/0/auth.json:/run/containers-auth/auth.json:ro,z \\
+  $RUNNER_IMAGE
 ExecStop=/usr/bin/podman stop buckman-runner
 Restart=always
 RestartSec=10
