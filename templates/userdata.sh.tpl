@@ -45,26 +45,28 @@ ls -la /run/containers/0/auth.json
 
 # Read image tags from Parameter Store (set by CI on deployment)
 echo "==> Reading image tags from Parameter Store"
-RUNNER_TAG=$(aws ssm get-parameter --name /buckman/runner-image-tag --query Parameter.Value --output text --region ${aws_region})
-VERSION_SERVER_TAG=$(aws ssm get-parameter --name /buckman/version-server-image-tag --query Parameter.Value --output text --region ${aws_region})
+RUNNER_TAG=$(aws ssm get-parameter --name /buckman/runner-image-tag --query Parameter.Value --output text --region ${aws_region} 2>/dev/null || echo "initial")
+VERSION_SERVER_TAG=$(aws ssm get-parameter --name /buckman/version-server-image-tag --query Parameter.Value --output text --region ${aws_region} 2>/dev/null || echo "initial")
 
-echo "Runner image tag: $RUNNER_TAG"
-echo "Version-server image tag: $VERSION_SERVER_TAG"
+echo "Runner image tag from Parameter Store: $RUNNER_TAG"
+echo "Version-server image tag from Parameter Store: $VERSION_SERVER_TAG"
 
-# Validate tags are not "initial" placeholder (indicates Terraform just created parameters)
-if [ "$RUNNER_TAG" = "initial" ] || [ "$VERSION_SERVER_TAG" = "initial" ]; then
-  echo "ERROR: Parameter Store contains placeholder value 'initial'"
-  echo "This means CI hasn't pushed images yet. Run CI workflow first!"
-  echo "Waiting 60 seconds for CI to update parameters..."
-  sleep 60
-  # Retry once
-  RUNNER_TAG=$(aws ssm get-parameter --name /buckman/runner-image-tag --query Parameter.Value --output text --region ${aws_region})
-  VERSION_SERVER_TAG=$(aws ssm get-parameter --name /buckman/version-server-image-tag --query Parameter.Value --output text --region ${aws_region})
-  if [ "$RUNNER_TAG" = "initial" ] || [ "$VERSION_SERVER_TAG" = "initial" ]; then
-    echo "FATAL: Parameters still 'initial' after retry. CI must run first!"
-    exit 1
-  fi
+# Fallback to :latest if Parameter Store has "initial" placeholder
+# This allows Terraform to work on first apply before CI runs
+if [ "$RUNNER_TAG" = "initial" ]; then
+  echo "⚠️  WARNING: Parameter Store has 'initial' value for runner tag"
+  echo "   Falling back to :latest tag (requires CI to have run at least once)"
+  RUNNER_TAG="latest"
 fi
+
+if [ "$VERSION_SERVER_TAG" = "initial" ]; then
+  echo "⚠️  WARNING: Parameter Store has 'initial' value for version-server tag"
+  echo "   Falling back to :latest tag (requires CI to have run at least once)"
+  VERSION_SERVER_TAG="latest"
+fi
+
+echo "Final runner image tag: $RUNNER_TAG"
+echo "Final version-server image tag: $VERSION_SERVER_TAG"
 
 # Construct full ECR image URLs
 RUNNER_IMAGE="${account_id}.dkr.ecr.${aws_region}.amazonaws.com/aws-infrastructure/buckman-runner:$RUNNER_TAG"
